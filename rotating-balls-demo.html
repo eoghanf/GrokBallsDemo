@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>10k Balls in a Rotating Circle • Built by Grok</title>
+  <meta name="description" content="An interactive physics simulation of 10,000 balls bouncing inside a rotating circle under gravity. Built by Grok.">
+  <meta property="og:title" content="10k Balls in a Rotating Circle">
+  <meta property="og:description" content="Beautiful real-time particle simulation with gravity, rotation, and live energy histograms. Built by Grok.">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
+    
+    :root {
+      --accent: #22d3ee;
+    }
+    
+    body {
+      font-family: 'Inter', system_ui, sans-serif;
+    }
+    
+    .font-display {
+      font-family: 'Space Grotesk', 'Inter', system_ui, sans-serif;
+      font-weight: 600;
+    }
+
+    canvas {
+      image-rendering: optimizeSpeed;
+      touch-action: none;
+    }
+
+    .slider {
+      accent-color: #22d3ee;
+    }
+
+    .control-card {
+      background-color: #18181b;
+      border: 1px solid #27272a;
+    }
+
+    .particle {
+      will-change: transform;
+    }
+
+    .section-title {
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body class="bg-zinc-950 text-white">
+  <div class="min-h-screen flex flex-col items-center p-6">
+    <!-- Header -->
+    <div class="w-full max-w-[1160px] mb-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="flex items-center gap-x-3">
+            <div class="w-9 h-9 rounded-2xl bg-gradient-to-br from-cyan-400 to-teal-400 flex items-center justify-center">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-zinc-950">
+                <circle cx="12" cy="12" r="9"/>
+                <circle cx="12" cy="12" r="4"/>
+              </svg>
+            </div>
+            <div>
+              <h1 class="font-display text-3xl tracking-tighter">10,000 Balls</h1>
+              <p class="text-zinc-400 text-sm -mt-0.5">in a rotating circle under gravity</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="flex items-center gap-x-2">
+          <button id="pause-btn"
+                  class="inline-flex items-center gap-x-2 px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-950 border border-zinc-700 text-sm font-medium transition-colors">
+            <svg id="pause-icon" width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="4" width="4" height="16" rx="1"/>
+              <rect x="14" y="4" width="4" height="16" rx="1"/>
+            </svg>
+            <span id="pause-text">Pause</span>
+          </button>
+          
+          <button id="reset-btn"
+                  class="inline-flex items-center gap-x-2 px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-950 border border-zinc-700 text-sm font-medium transition-colors">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+            </svg>
+            <span>Reset</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex flex-col lg:flex-row gap-6 w-full max-w-[1160px]">
+      
+      <!-- Left: Energy Histograms -->
+      <div class="w-52 lg:w-60 flex-shrink-0 flex flex-col gap-5">
+        <!-- Kinetic Energy Histogram -->
+        <div class="control-card rounded-3xl p-3.5">
+          <div class="flex items-baseline justify-between px-1 mb-1.5">
+            <div class="text-[10px] font-semibold text-zinc-400">Kinetic Energy</div>
+            <div id="ke-mean" class="font-mono text-[11px] text-cyan-400 tabular-nums"></div>
+          </div>
+          <canvas id="ke-hist" width="200" height="130" class="rounded-2xl bg-zinc-950 block"></canvas>
+          <div class="flex justify-between text-[10px] text-zinc-500 px-1 mt-1 tabular-nums">
+            <div id="ke-min">0</div>
+            <div id="ke-max">0</div>
+          </div>
+        </div>
+
+        <!-- Potential Energy Histogram -->
+        <div class="control-card rounded-3xl p-3.5">
+          <div class="flex items-baseline justify-between px-1 mb-1.5">
+            <div class="text-[10px] font-semibold text-zinc-400">Potential Energy</div>
+            <div id="pe-mean" class="font-mono text-[11px] text-amber-400 tabular-nums"></div>
+          </div>
+          <canvas id="pe-hist" width="200" height="130" class="rounded-2xl bg-zinc-950 block"></canvas>
+          <div class="flex justify-between text-[10px] text-zinc-500 px-1 mt-1 tabular-nums">
+            <div id="pe-min">0</div>
+            <div id="pe-max">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Canvas -->
+      <div class="flex-shrink-0">
+        <div class="relative rounded-3xl p-2 bg-zinc-900 border border-zinc-800 shadow-2xl shadow-black/50">
+          <canvas id="canvas" width="800" height="800" 
+                  class="rounded-2xl cursor-crosshair bg-zinc-950"
+                  style="width: 640px; height: 640px; max-width: 100%;"></canvas>
+          
+          <!-- Overlay stats -->
+          <div class="absolute top-4 right-4 px-3 py-1.5 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-mono flex items-center gap-x-2">
+            <div class="flex items-center gap-x-1.5">
+              <div class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div>
+              <span id="fps" class="tabular-nums text-emerald-300 font-medium">60</span>
+            </div>
+            <div class="text-white/40">fps</div>
+          </div>
+        </div>
+        <div class="mt-2 text-center text-[10px] text-zinc-500 font-medium tracking-wide">DRAG ON CANVAS TO PUSH BALLS</div>
+      </div>
+
+      <!-- Controls -->
+      <div class="flex-1 lg:w-64 space-y-3">
+        
+        <!-- Gravity -->
+        <div class="control-card rounded-3xl p-5">
+          <div class="flex items-baseline justify-between mb-3">
+            <div>
+              <div class="section-title text-zinc-400">Gravity</div>
+              <div id="gravity-value" class="font-mono text-2xl font-semibold tabular-nums text-white">80.0</div>
+            </div>
+            <div class="text-right">
+              <div class="text-[10px] text-zinc-500">px/s²</div>
+            </div>
+          </div>
+          <input type="range" id="gravity-slider" 
+                 class="slider w-full accent-cyan-400" 
+                 min="0" max="280" step="1" value="80">
+          <div class="flex justify-between text-[10px] text-zinc-500 mt-1 px-0.5">
+            <div>0</div>
+            <div>280</div>
+          </div>
+        </div>
+
+        <!-- Rotation -->
+        <div class="control-card rounded-3xl p-5">
+          <div class="flex items-baseline justify-between mb-3">
+            <div>
+              <div class="section-title text-zinc-400">Rotation Speed</div>
+              <div id="rotation-value" class="font-mono text-2xl font-semibold tabular-nums text-white">+0.29</div>
+            </div>
+            <div class="text-right">
+              <div class="text-[10px] text-zinc-500">rev/s</div>
+              <div id="rotation-rad" class="text-[10px] text-zinc-400 tabular-nums">ω = +1.80</div>
+            </div>
+          </div>
+          <input type="range" id="rotation-slider" 
+                 class="slider w-full accent-cyan-400" 
+                 min="-8" max="8" step="0.05" value="1.8">
+          <div class="flex justify-between text-[10px] text-zinc-500 mt-1 px-0.5">
+            <div class="text-rose-400/70">−8</div>
+            <div class="text-emerald-400/70">+8</div>
+          </div>
+          <div class="text-[10px] text-center text-zinc-500 mt-1">positive = counterclockwise</div>
+        </div>
+
+        <!-- Energy Loss per Bounce -->
+        <div class="control-card rounded-3xl p-5">
+          <div class="flex items-baseline justify-between mb-3">
+            <div>
+              <div class="section-title text-zinc-400">Energy Loss per Bounce</div>
+              <div class="flex items-baseline gap-x-0.5">
+                <div id="loss-value" class="font-mono text-2xl font-semibold tabular-nums text-white">4.0</div>
+                <div class="text-sm text-zinc-400">%</div>
+              </div>
+            </div>
+          </div>
+          <input type="range" id="loss-slider" 
+                 class="slider w-full accent-cyan-400" 
+                 min="0" max="30" step="0.5" value="4">
+          <div class="flex justify-between text-[10px] text-zinc-500 mt-1 px-0.5">
+            <div>0% (elastic)</div>
+            <div>30%</div>
+          </div>
+          <div class="text-[10px] text-center text-zinc-500 mt-1">measured in the drum's rotating frame</div>
+        </div>
+
+        <!-- Number of Balls -->
+        <div class="control-card rounded-3xl p-5">
+          <div class="flex items-baseline justify-between mb-3">
+            <div>
+              <div class="section-title text-zinc-400">Balls</div>
+              <div id="balls-value" class="font-mono text-2xl font-semibold tabular-nums text-white">10,000</div>
+            </div>
+            <div class="text-right">
+              <div id="balls-pct" class="text-xs px-2 py-px rounded bg-zinc-800 text-zinc-400">100%</div>
+            </div>
+          </div>
+          <input type="range" id="balls-slider" 
+                 class="slider w-full accent-cyan-400" 
+                 min="200" max="18000" step="100" value="10000">
+          <div class="flex justify-between text-[10px] text-zinc-500 mt-1 px-0.5">
+            <div>200</div>
+            <div>18k</div>
+          </div>
+        </div>
+
+        <div class="pt-1 px-1">
+          <div class="text-[10px] leading-tight text-zinc-400">
+            The slider sets what fraction of each ball's kinetic energy (in the drum's own frame) is lost on every wall hit.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Built by Grok -->
+    <div class="w-full max-w-[1160px] mt-10">
+      <div class="flex justify-center">
+        <a href="https://grok.x.ai" target="_blank" rel="noopener"
+           class="group inline-flex items-center gap-x-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-950 border border-zinc-700 pl-3.5 pr-4 py-1.5 text-sm transition-all hover:border-zinc-600">
+          <span class="text-zinc-400 group-hover:text-zinc-300">Built by</span>
+          <span class="font-semibold tracking-tight text-white">Grok</span>
+        </a>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Tailwind script
+    function initTailwind() {
+      document.documentElement.style.setProperty('--accent', '#22d3ee');
+    }
+    initTailwind();
+
+    // Canvas setup
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
+    
+    // Logical size (independent of display size for crisp rendering)
+    const LOGICAL_SIZE = 800;
+    const DPR = window.devicePixelRatio || 1;
+    
+    // Display size
+    const DISPLAY_SIZE = 640;
+    canvas.style.width = DISPLAY_SIZE + 'px';
+    canvas.style.height = DISPLAY_SIZE + 'px';
+    
+    // Set actual pixel dimensions for HiDPI
+    canvas.width = LOGICAL_SIZE * DPR;
+    canvas.height = LOGICAL_SIZE * DPR;
+    ctx.scale(DPR, DPR);
+
+    const CX = LOGICAL_SIZE / 2;
+    const CY = LOGICAL_SIZE / 2;
+    let R = LOGICAL_SIZE * 0.46; // circle radius
+
+    // Histogram canvases (left side)
+    const keHistCanvas = document.getElementById('ke-hist');
+    const peHistCanvas = document.getElementById('pe-hist');
+    const keHistCtx = keHistCanvas.getContext('2d', { alpha: true });
+    const peHistCtx = peHistCanvas.getContext('2d', { alpha: true });
+
+    // Pre-allocated buffers to avoid GC pressure
+    const MAX_PARTICLES = 20000;
+    let keBuffer = new Float32Array(MAX_PARTICLES);
+    let peBuffer = new Float32Array(MAX_PARTICLES);
+
+    // Smoothed display ranges for stable histogram axes (start reasonable)
+    let displayMaxKE = 50;
+    let displayMaxPE = 200;
+
+    // Simulation state
+    let particles = [];
+    let gravity = 80;           // px/s² (downward)
+    let omega = 1.8;            // rad/s (positive = CCW)
+    let bounceEnergyLoss = 0.04; // fraction of relative KE lost per wall collision (in drum frame)
+    let numBalls = 10000;
+    let running = true;
+    let simTime = 0;            // seconds
+    let rotationAngle = 0;      // accumulated rotation for visuals
+
+    // Performance
+    let lastFrameTime = performance.now();
+    let fps = 60;
+    let frameCount = 0;
+    let fpsUpdateTime = lastFrameTime;
+
+    // Mouse interaction
+    let isDragging = false;
+    let lastMouseX = 0;
+    let lastMouseY = 0;
+
+    // Particle storage — plain objects are fast enough at 18k
+    function createParticle(x, y) {
+      return { x, y, vx: 0, vy: 0 };
+    }
+
+    // Initial distribution: small disk as specified by the user
+    function getInitialDisk() {
+      // Small disk specification:
+      // - Radius = 1/10 of the big container
+      // - Horizontally centered
+      // - Vertically: center is 2/3 of the way up from the bottom of the big circle
+      //   big bottom y = CY + R
+      //   "up" direction is negative y
+      //   y = (CY + R) - (2/3)*(2R) = CY - R/3
+      return {
+        cx: CX,
+        cy: CY - R / 3,
+        radius: R / 10
+      };
+    }
+
+    function sampleInitialDisk() {
+      // Uniform area sampling inside the small disk (correct 2D uniform distribution)
+      const disk = getInitialDisk();
+      const r = disk.radius * Math.sqrt(Math.random());
+      const theta = Math.random() * Math.PI * 2;
+      return {
+        x: disk.cx + r * Math.cos(theta),
+        y: disk.cy + r * Math.sin(theta)
+      };
+    }
+
+    function initParticles(count) {
+      particles = [];
+      for (let i = 0; i < count; i++) {
+        const pos = sampleInitialDisk();
+        particles.push(createParticle(pos.x, pos.y));
+      }
+    }
+
+    function addParticles(count) {
+      for (let i = 0; i < count; i++) {
+        const pos = sampleInitialDisk();
+        particles.push(createParticle(pos.x, pos.y));
+      }
+    }
+
+    function removeParticles(count) {
+      particles.splice(particles.length - count, count);
+    }
+
+    // Physics — fixed substeps for stability
+    const SUBSTEPS = 4;
+    
+    function physicsStep(dt) {
+      if (!running || dt <= 0) return;
+      
+      const sdt = dt / SUBSTEPS;
+      const g = gravity;
+      const w = omega;
+      const loss = bounceEnergyLoss;   // fraction of relative KE lost in the drum frame
+      
+      for (let s = 0; s < SUBSTEPS; s++) {
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          
+          // Apply gravity (y+ is down in canvas)
+          p.vy += g * sdt;
+          
+          // Integrate
+          p.x += p.vx * sdt;
+          p.y += p.vy * sdt;
+          
+          // Wall collision (rotating circle)
+          const dx = p.x - CX;
+          const dy = p.y - CY;
+          let dist = Math.hypot(dx, dy);
+          
+          if (dist > R || dist < 0.0001) {
+            if (dist < 0.0001) {
+              // Rare center case — push outward
+              p.x = CX + (Math.random() - 0.5) * 4;
+              p.y = CY + (Math.random() - 0.5) * 4;
+              dist = Math.hypot(p.x - CX, p.y - CY);
+            }
+            
+            // Normalize
+            const invDist = 1 / dist;
+            const nx = dx * invDist;
+            const ny = dy * invDist;
+            
+            // Project exactly onto boundary
+            p.x = CX + nx * R;
+            p.y = CY + ny * R;
+            
+            // Velocity of the wall at contact point (in lab frame).
+            // Tangent vector for positive (CCW) rotation: (-ny, nx)
+            const tx = -ny;
+            const ty = nx;
+            const wallVelX = w * R * tx;
+            const wallVelY = w * R * ty;
+            
+            // Relative velocity in the *drum's frame* (this is what the user controls)
+            let rvx = p.vx - wallVelX;
+            let rvy = p.vy - wallVelY;
+            
+            // Perfect elastic reflection in the drum frame (reverse normal component)
+            const vDotN = rvx * nx + rvy * ny;
+            rvx -= 2 * vDotN * nx;
+            rvy -= 2 * vDotN * ny;
+            
+            // Now reduce the *relative* kinetic energy by the chosen fraction.
+            // This is the single damping coefficient the user asked for.
+            // KE_rel_after = KE_rel_before * (1 - loss)   →  speed scaled by sqrt(1 - loss)
+            if (loss > 0) {
+              const speedScale = Math.sqrt(1 - loss);
+              rvx *= speedScale;
+              rvy *= speedScale;
+            }
+            
+            // Convert back to lab frame
+            p.vx = wallVelX + rvx;
+            p.vy = wallVelY + rvy;
+            
+            // Hard safety cap (only for pathological slider combinations)
+            const speed2 = p.vx * p.vx + p.vy * p.vy;
+            const maxSpeed = 980;
+            if (speed2 > maxSpeed * maxSpeed) {
+              const scale = maxSpeed / Math.sqrt(speed2);
+              p.vx *= scale;
+              p.vy *= scale;
+            }
+          }
+        }
+      }
+      
+      // No per-frame global damping whatsoever.
+      // The only energy sink is the explicit loss the user sets on the slider,
+      // applied to the relative velocity in the drum's rotating frame.
+    }
+
+    // Rendering
+    function draw() {
+      // Background
+      ctx.fillStyle = '#09090b';
+      ctx.fillRect(0, 0, LOGICAL_SIZE, LOGICAL_SIZE);
+      
+      // Subtle vignette
+      const grad = ctx.createRadialGradient(CX, CY, R * 0.35, CX, CY, R * 1.35);
+      grad.addColorStop(0, 'transparent');
+      grad.addColorStop(1, 'rgba(0,0,0,0.65)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, LOGICAL_SIZE, LOGICAL_SIZE);
+      
+      // Soft filled circle (the container interior)
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
+      ctx.beginPath();
+      ctx.arc(CX, CY, R, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Very faint inner highlight ring
+      ctx.strokeStyle = 'rgba(103, 232, 249, 0.06)';
+      ctx.lineWidth = 18;
+      ctx.beginPath();
+      ctx.arc(CX, CY, R - 9, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Rotating tick marks on the wall (visualize rotation)
+      ctx.strokeStyle = '#67f6ff';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      
+      const numTicks = 14;
+      const tickLen = 11;
+      const tickOffset = 3.5;
+      
+      for (let i = 0; i < numTicks; i++) {
+        const angle = rotationAngle + (i * Math.PI * 2 / numTicks);
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        
+        const x1 = CX + (R - tickOffset) * cos;
+        const y1 = CY + (R - tickOffset) * sin;
+        const x2 = CX + (R + tickLen - tickOffset) * cos;
+        const y2 = CY + (R + tickLen - tickOffset) * sin;
+        
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+      
+      // Main boundary ring
+      ctx.strokeStyle = '#a5f3fc';
+      ctx.lineWidth = 2.25;
+      ctx.beginPath();
+      ctx.arc(CX, CY, R, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Inner thin rim for depth
+      ctx.strokeStyle = 'rgba(103, 232, 249, 0.35)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(CX, CY, R - 1, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Draw particles — use small rounded rects for speed + decent look
+      ctx.fillStyle = '#e0f2fe';
+      
+      const size = 2.35;
+      const half = size / 2;
+      
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        // Soft round-ish dots via small rects (fast)
+        ctx.fillRect(p.x - half, p.y - half, size, size);
+      }
+      
+      // Center dot (reference)
+      ctx.fillStyle = '#22d3ee';
+      ctx.beginPath();
+      ctx.arc(CX, CY, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#0a0a0b';
+      ctx.beginPath();
+      ctx.arc(CX, CY, 1.1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // --- Energy Histograms ---
+    function updateHistograms() {
+      const n = particles.length;
+      if (n === 0) return;
+
+      const bottomY = CY + R;
+      let sumKE = 0, sumPE = 0;
+      let obsMaxKE = 0, obsMaxPE = 0;
+
+      // Single pass: compute KE, PE, sums, and observed maxes
+      for (let i = 0; i < n; i++) {
+        const p = particles[i];
+        const ke = 0.5 * (p.vx * p.vx + p.vy * p.vy);
+        const height = bottomY - p.y;           // 0 at bottom of circle, positive upward
+        const pe = gravity * Math.max(0, height);
+
+        keBuffer[i] = ke;
+        peBuffer[i] = pe;
+
+        sumKE += ke;
+        sumPE += pe;
+        if (ke > obsMaxKE) obsMaxKE = ke;
+        if (pe > obsMaxPE) obsMaxPE = pe;
+      }
+
+      const meanKE = sumKE / n;
+      const meanPE = sumPE / n;
+
+      // Smooth the display max so axes don't jitter wildly
+      const KE_SMOOTH = 0.88;
+      const PE_SMOOTH = 0.88;
+      displayMaxKE = Math.max(obsMaxKE * 1.05, displayMaxKE * KE_SMOOTH);
+      displayMaxPE = Math.max(obsMaxPE * 1.05, displayMaxPE * PE_SMOOTH);
+
+      // Make sure max is never zero
+      if (displayMaxKE < 1e-6) displayMaxKE = 1;
+      if (displayMaxPE < 1e-6) displayMaxPE = 1;
+
+      // Update text labels
+      document.getElementById('ke-mean').textContent = meanKE.toFixed(1);
+      document.getElementById('pe-mean').textContent = meanPE.toFixed(1);
+      document.getElementById('ke-min').textContent = '0';
+      document.getElementById('ke-max').textContent = displayMaxKE.toFixed(0);
+      document.getElementById('pe-min').textContent = '0';
+      document.getElementById('pe-max').textContent = displayMaxPE.toFixed(0);
+
+      // Draw the two histograms
+      drawHistogram(keHistCtx, keHistCanvas, keBuffer, n, displayMaxKE, '#67f6ff', meanKE);
+      drawHistogram(peHistCtx, peHistCanvas, peBuffer, n, displayMaxPE, '#fbbf24', meanPE);
+    }
+
+    function drawHistogram(ctx, canvas, buffer, n, maxVal, barColor, meanVal) {
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // Background
+      ctx.fillStyle = '#09090b';
+      ctx.fillRect(0, 0, w, h);
+
+      const BINS = 24;
+      const counts = new Uint16Array(BINS);
+      const binWidth = maxVal / BINS;
+
+      // Bin the data (ignore anything above current maxVal for stability)
+      let maxCount = 1;
+      for (let i = 0; i < n; i++) {
+        let v = buffer[i];
+        if (v < 0) v = 0;
+        let idx = Math.floor(v / binWidth);
+        if (idx < 0) idx = 0;
+        if (idx >= BINS) idx = BINS - 1;
+        counts[idx]++;
+        if (counts[idx] > maxCount) maxCount = counts[idx];
+      }
+
+      const padL = 4;
+      const padR = 4;
+      const padT = 5;
+      const padB = 4;
+      const plotW = w - padL - padR;
+      const plotH = h - padT - padB;
+      const barGap = 1.5;
+      const barW = Math.max(1, (plotW - (BINS - 1) * barGap) / BINS);
+
+      // Draw bars
+      ctx.fillStyle = barColor;
+      for (let b = 0; b < BINS; b++) {
+        const barH = (counts[b] / maxCount) * plotH;
+        const x = padL + b * (barW + barGap);
+        const y = padT + plotH - barH;
+        ctx.fillRect(x, y, barW, Math.max(1, barH));
+      }
+
+      // Mean marker (subtle vertical line)
+      if (meanVal > 0 && meanVal < maxVal * 1.1) {
+        const meanX = padL + (meanVal / maxVal) * plotW;
+        ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(meanX, padT);
+        ctx.lineTo(meanX, padT + plotH);
+        ctx.stroke();
+
+        // small cap on mean line (more visible on larger plots)
+        ctx.fillStyle = 'rgba(255,255,255,0.95)';
+        ctx.fillRect(meanX - 2, padT - 1.5, 4, 4);
+      }
+
+      // Very faint bottom axis line
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padL, padT + plotH);
+      ctx.lineTo(padL + plotW, padT + plotH);
+      ctx.stroke();
+    }
+
+    // Main loop
+    function frame(now = performance.now()) {
+      const dt = Math.min((now - lastFrameTime) / 1000, 0.045); // clamp huge jumps
+      lastFrameTime = now;
+      
+      // Update simulation
+      if (running) {
+        physicsStep(dt);
+        simTime += dt;
+        rotationAngle = (rotationAngle + omega * dt) % (Math.PI * 2);
+      }
+      
+      // Draw everything
+      draw();
+      
+      // Update left-side energy histograms (every frame is fine at 10k–18k particles)
+      updateHistograms();
+      
+      // FPS counter
+      frameCount++;
+      if (now - fpsUpdateTime > 420) {
+        fps = Math.round((frameCount * 1000) / (now - fpsUpdateTime));
+        document.getElementById('fps').textContent = fps;
+        frameCount = 0;
+        fpsUpdateTime = now;
+      }
+      
+      requestAnimationFrame(frame);
+    }
+
+    // Slider bindings
+    function bindSliders() {
+      // Gravity
+      const gSlider = document.getElementById('gravity-slider');
+      const gValue = document.getElementById('gravity-value');
+      
+      gSlider.value = gravity;
+      gValue.textContent = gravity.toFixed(1);
+      
+      gSlider.addEventListener('input', () => {
+        gravity = parseFloat(gSlider.value);
+        gValue.textContent = gravity.toFixed(1);
+      });
+      
+      // Rotation
+      const rSlider = document.getElementById('rotation-slider');
+      const rValue = document.getElementById('rotation-value');
+      const rRad = document.getElementById('rotation-rad');
+      
+      rSlider.value = omega;
+      updateRotationLabels();
+      
+      function updateRotationLabels() {
+        const revs = omega / (Math.PI * 2);
+        const sign = omega >= 0 ? '+' : '';
+        rValue.textContent = `${sign}${revs.toFixed(2)}`;
+        rRad.textContent = `ω = ${sign}${omega.toFixed(2)}`;
+        // subtle color hint for direction
+        rValue.style.color = omega >= 0 ? '#a5f3fc' : '#fda4af';
+      }
+      
+      rSlider.addEventListener('input', () => {
+        omega = parseFloat(rSlider.value);
+        updateRotationLabels();
+      });
+      
+      // Energy loss per bounce (single damping coefficient)
+      const lossSlider = document.getElementById('loss-slider');
+      const lossValue = document.getElementById('loss-value');
+      
+      lossSlider.value = bounceEnergyLoss * 100;
+      lossValue.textContent = (bounceEnergyLoss * 100).toFixed(1);
+      
+      lossSlider.addEventListener('input', () => {
+        bounceEnergyLoss = parseFloat(lossSlider.value) / 100;
+        lossValue.textContent = (bounceEnergyLoss * 100).toFixed(1);
+      });
+      
+      // Number of balls
+      const bSlider = document.getElementById('balls-slider');
+      const bValue = document.getElementById('balls-value');
+      const bPct = document.getElementById('balls-pct');
+      
+      bSlider.value = numBalls;
+      bValue.textContent = numBalls.toLocaleString();
+      bPct.textContent = Math.round((numBalls / 18000) * 100) + '%';
+      
+      bSlider.addEventListener('input', () => {
+        const target = parseInt(bSlider.value, 10);
+        const diff = target - particles.length;
+        
+        if (diff > 0) {
+          addParticles(diff);
+        } else if (diff < 0) {
+          removeParticles(-diff);
+        }
+        
+        numBalls = particles.length;
+        bValue.textContent = numBalls.toLocaleString();
+        bPct.textContent = Math.round((numBalls / 18000) * 100) + '%';
+      });
+      
+      // Also allow direct slider update when we change programmatically
+      window.updateBallSlider = (n) => {
+        bSlider.value = n;
+        bValue.textContent = n.toLocaleString();
+        bPct.textContent = Math.round((n / 18000) * 100) + '%';
+      };
+    }
+
+    // Mouse / touch push interaction
+    function setupInteraction() {
+      const rect = () => canvas.getBoundingClientRect();
+      
+      function getPos(e) {
+        const r = rect();
+        const scaleX = LOGICAL_SIZE / DISPLAY_SIZE;
+        const scaleY = LOGICAL_SIZE / DISPLAY_SIZE;
+        let clientX = e.clientX ?? (e.touches && e.touches[0].clientX);
+        let clientY = e.clientY ?? (e.touches && e.touches[0].clientY);
+        return {
+          x: (clientX - r.left) * scaleX,
+          y: (clientY - r.top) * scaleY
+        };
+      }
+      
+      function pushParticles(px, py, strength = 1) {
+        const radius = 68;
+        const kick = 520 * strength;
+        
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          const dx = p.x - px;
+          const dy = p.y - py;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < radius * radius && d2 > 0.5) {
+            const d = Math.sqrt(d2);
+            const fx = (dx / d) * kick * (1 - d / radius);
+            const fy = (dy / d) * kick * (1 - d / radius);
+            p.vx += fx;
+            p.vy += fy;
+          }
+        }
+      }
+      
+      // Mouse
+      canvas.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        const pos = getPos(e);
+        lastMouseX = pos.x;
+        lastMouseY = pos.y;
+        pushParticles(pos.x, pos.y, 0.7);
+      });
+      
+      window.addEventListener('mouseup', () => { isDragging = false; });
+      window.addEventListener('mouseleave', () => { isDragging = false; });
+      
+      canvas.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const pos = getPos(e);
+        // continuous push while dragging
+        pushParticles(pos.x, pos.y, 0.55);
+        // also give a little tangential swirl from mouse motion
+        const dx = pos.x - lastMouseX;
+        const dy = pos.y - lastMouseY;
+        const swirl = 0.6;
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          const ddx = p.x - pos.x;
+          const ddy = p.y - pos.y;
+          if (ddx * ddx + ddy * ddy < 8200) {
+            p.vx += dy * swirl;
+            p.vy -= dx * swirl;
+          }
+        }
+        lastMouseX = pos.x;
+        lastMouseY = pos.y;
+      });
+      
+      // Touch support
+      canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        isDragging = true;
+        const pos = getPos(e);
+        lastMouseX = pos.x;
+        lastMouseY = pos.y;
+        pushParticles(pos.x, pos.y, 0.85);
+      }, { passive: false });
+      
+      canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (!isDragging) return;
+        const pos = getPos(e);
+        pushParticles(pos.x, pos.y, 0.7);
+        lastMouseX = pos.x;
+        lastMouseY = pos.y;
+      }, { passive: false });
+      
+      canvas.addEventListener('touchend', () => { isDragging = false; });
+    }
+
+    // UI buttons
+    function setupButtons() {
+      const pauseBtn = document.getElementById('pause-btn');
+      const pauseText = document.getElementById('pause-text');
+      const pauseIcon = document.getElementById('pause-icon');
+      const resetBtn = document.getElementById('reset-btn');
+      
+      pauseBtn.addEventListener('click', () => {
+        running = !running;
+        if (running) {
+          lastFrameTime = performance.now();
+          pauseText.textContent = 'Pause';
+          pauseIcon.innerHTML = `<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>`;
+        } else {
+          pauseText.textContent = 'Resume';
+          pauseIcon.innerHTML = `<polygon points="8,5 8,19 19,12" fill="currentColor"/>`;
+        }
+      });
+      
+      resetBtn.addEventListener('click', () => {
+        initParticles(numBalls);
+        simTime = 0;
+        rotationAngle = 0;
+        // keep current slider values
+      });
+      
+      // Keyboard shortcuts
+      window.addEventListener('keydown', (e) => {
+        if (e.key.toLowerCase() === 'r') {
+          e.preventDefault();
+          resetBtn.click();
+        }
+        if (e.key === ' ' || e.key.toLowerCase() === 'p') {
+          e.preventDefault();
+          pauseBtn.click();
+        }
+      });
+    }
+
+    // Expose a couple of nice-to-have debug hooks
+    window.GRAVITY_DEMO = {
+      setGravity: (g) => { gravity = g; document.getElementById('gravity-slider').value = g; document.getElementById('gravity-value').textContent = g.toFixed(1); },
+      setOmega: (w) => { omega = w; document.getElementById('rotation-slider').value = w; 
+        const revs = w / (Math.PI * 2); 
+        document.getElementById('rotation-value').textContent = (w >= 0 ? '+' : '') + revs.toFixed(2);
+        document.getElementById('rotation-rad').textContent = `ω = ${(w >= 0 ? '+' : '') + w.toFixed(2)}`;
+      },
+      setBounceLoss: (fraction) => { 
+        bounceEnergyLoss = fraction; 
+        const pct = fraction * 100;
+        document.getElementById('loss-slider').value = pct; 
+        document.getElementById('loss-value').textContent = pct.toFixed(1); 
+      },
+      getParticleCount: () => particles.length
+    };
+
+    // Boot
+    function start() {
+      // Initial particles
+      initParticles(numBalls);
+      
+      // Wire controls
+      bindSliders();
+      setupInteraction();
+      setupButtons();
+      
+      // Make sure initial labels are perfect
+      document.getElementById('gravity-value').textContent = gravity.toFixed(1);
+      const revs = omega / (Math.PI * 2);
+      document.getElementById('rotation-value').textContent = `+${revs.toFixed(2)}`;
+      document.getElementById('rotation-rad').textContent = `ω = +${omega.toFixed(2)}`;
+      document.getElementById('loss-value').textContent = (bounceEnergyLoss * 100).toFixed(1);
+      document.getElementById('balls-value').textContent = numBalls.toLocaleString();
+      document.getElementById('balls-pct').textContent = Math.round((numBalls / 18000) * 100) + '%';
+
+      // Initial histogram label state
+      document.getElementById('ke-mean').textContent = '—';
+      document.getElementById('pe-mean').textContent = '—';
+      document.getElementById('ke-min').textContent = '0';
+      document.getElementById('ke-max').textContent = '0';
+      document.getElementById('pe-min').textContent = '0';
+      document.getElementById('pe-max').textContent = '0';
+      
+      // Kick off the loop
+      lastFrameTime = performance.now();
+      requestAnimationFrame(frame);
+      
+      // Fun initial nudge so it doesn't look completely static at t=0
+      setTimeout(() => {
+        if (running && particles.length > 0) {
+          // tiny random kicks to ~8% of particles
+          for (let i = 0; i < particles.length; i += 13) {
+            particles[i].vx += (Math.random() - 0.5) * 18;
+            particles[i].vy += (Math.random() - 0.5) * 11;
+          }
+        }
+      }, 420);
+    }
+
+    // Launch
+    start();
+  </script>
+</body>
+</html>
