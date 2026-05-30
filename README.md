@@ -33,4 +33,4 @@ Repo: [github.com/eoghanf/GrokBallsDemo](https://github.com/eoghanf/GrokBallsDem
 
 ## License
 
-MIT
+This project is released under the [MIT License](LICENSE).
