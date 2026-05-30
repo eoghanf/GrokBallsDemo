@@ -1,8 +1,8 @@
-# 10,000 Balls in a Rotating Circle
+# GrokBallsDemo — 10,000 Balls in a Rotating Circle
 
 An interactive real-time physics simulation of 10,000 small balls moving under gravity inside a spinning circular container.
 
-![Demo](https://github.com/eoghanf/rotating-balls-demo/raw/main/screenshot.png) <!-- optional -->
+![Demo](https://github.com/eoghanf/GrokBallsDemo/raw/main/screenshot.png) <!-- optional -->
 
 ## Features
 
@@ -16,7 +16,7 @@ An interactive real-time physics simulation of 10,000 small balls moving under g
 
 Just open `rotating-balls-demo.html` in any modern browser. No build step required.
 
-Or view the live version here: [GitHub Pages link once enabled]
+Or view the live version here: https://eoghanf.github.io/GrokBallsDemo/ (once GitHub Pages is enabled)
 
 ## Controls
 
@@ -27,7 +27,8 @@ Or view the live version here: [GitHub Pages link once enabled]
 
 ## Built by Grok
 
-This demo was created with assistance from Grok.
+This demo was created with assistance from [Grok](https://grok.x.ai).  
+Repo: [github.com/eoghanf/GrokBallsDemo](https://github.com/eoghanf/GrokBallsDemo)
 
 ## License
 
