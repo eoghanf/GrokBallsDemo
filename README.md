@@ -14,7 +14,7 @@ An interactive real-time physics simulation of 10,000 small balls moving under g
 
 ## Try it
 
-Just open `rotating-balls-demo.html` in any modern browser. No build step required.
+Just open `index.html` in any modern browser. No build step required.
 
 Or view the live version here: https://eoghanf.github.io/GrokBallsDemo/ (once GitHub Pages is enabled)
 
